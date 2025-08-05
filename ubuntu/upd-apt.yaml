@@ -1,36 +1,11 @@
 ---
-- name: Update and upgrade apt packages
+- name: Update all packages on Debian-based systems
   hosts: all
-  become: true
-  become_method: sudo
+  become: yes  # Run as sudo
   tasks:
-    - name: Kill any running apt processes
-      shell: |
-        killall apt apt-get dpkg >/dev/null 2>&1 || true
-        killall unattended-upgrade >/dev/null 2>&1 || true
-      ignore_errors: true
-        
-    - name: Remove apt locks if they exist
-      file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - /var/lib/apt/lists/lock
-        - /var/cache/apt/archives/lock
-        - /var/lib/dpkg/lock
-        - /var/lib/dpkg/lock-frontend
-      ignore_errors: true
-      
-    - name: Configure dpkg
-      shell: dpkg --configure -a
-      ignore_errors: true
-      
-    - name: Update packages with apt
-      when: ansible_pkg_mgr == 'apt'
-      ansible.builtin.apt:
-        update_cache: true
-        
-    - name: Upgrade packages with apt
-      when: ansible_pkg_mgr == 'apt'
-      ansible.builtin.apt:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+    - name: Upgrade all packages to the latest version
+      apt:
         upgrade: dist
