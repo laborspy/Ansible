@@ -1,0 +1,62 @@
+---
+- name: Remove user and clean up sudoers on Ubuntu systems
+  hosts: all
+  become: yes  # Run as sudo
+  become_user: root
+  vars:
+    # These will be pulled from your Semaphore variable group
+    username: "{{ username }}"
+  tasks:
+    - name: Check if user exists
+      getent:
+        database: passwd
+        key: "{{ username }}"
+      register: user_exists
+      failed_when: false
+      
+    - name: Remove user from sudoers file
+      lineinfile:
+        path: /etc/sudoers
+        state: absent
+        regexp: "^{{ username }}"
+        validate: 'visudo -cf %s'
+      when: user_exists.ansible_facts.getent_passwd[username] is defined
+      
+    - name: Kill all processes owned by the user
+      shell: "pkill -u {{ username }} || true"
+      when: user_exists.ansible_facts.getent_passwd[username] is defined
+      
+    - name: Wait for processes to terminate
+      pause:
+        seconds: 2
+      when: user_exists.ansible_facts.getent_passwd[username] is defined
+      
+    - name: Force kill any remaining processes
+      shell: "pkill -9 -u {{ username }} || true"
+      when: user_exists.ansible_facts.getent_passwd[username] is defined
+      
+    - name: Remove user account and home directory
+      user:
+        name: "{{ username }}"
+        state: absent
+        remove: yes
+        force: yes
+      when: user_exists.ansible_facts.getent_passwd[username] is defined
+      
+    - name: Remove any remaining files in /tmp owned by user
+      shell: "find /tmp -user {{ username }} -delete 2>/dev/null || true"
+      when: user_exists.ansible_facts.getent_passwd[username] is defined
+      
+    - name: Remove user from any additional groups (cleanup)
+      shell: "groups {{ username }} 2>/dev/null | cut -d: -f2 | xargs -n1 | grep -v {{ username }} | xargs -I {} gpasswd -d {{ username }} {} 2>/dev/null || true"
+      when: user_exists.ansible_facts.getent_passwd[username] is defined
+      
+    - name: Display removal status
+      debug:
+        msg: "User {{ username }} has been successfully removed from {{ inventory_hostname }}"
+      when: user_exists.ansible_facts.getent_passwd[username] is defined
+      
+    - name: Display if user was not found
+      debug:
+        msg: "User {{ username }} was not found on {{ inventory_hostname }}"
+      when: user_exists.ansible_facts.getent_passwd[username] is not defined
