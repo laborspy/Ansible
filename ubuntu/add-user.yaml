@@ -8,6 +8,12 @@
     username: "{{ username }}"
     password: "{{ password }}"
   tasks:
+    - name: Install passlib on control node (run locally)
+      pip:
+        name: passlib
+      delegate_to: localhost
+      run_once: true
+      become: no
     - name: Create user account
       user:
         name: "{{ username }}"
