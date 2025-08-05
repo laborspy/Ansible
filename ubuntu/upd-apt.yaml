@@ -3,13 +3,15 @@
   hosts: all
   become: true
   become_method: sudo
-
   tasks:
+    - name: Wait for apt lock to be released
+      shell: while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do sleep 1; done
+      
     - name: Update packages with apt
       when: ansible_pkg_mgr == 'apt'
       ansible.builtin.apt:
         update_cache: true
-
+        
     - name: Upgrade packages with apt
       when: ansible_pkg_mgr == 'apt'
       ansible.builtin.apt:
