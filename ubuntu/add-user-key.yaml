@@ -43,12 +43,13 @@
         mode: '0700'
     
     - name: Add SSH public key to authorized_keys
-      authorized_key:
-        user: "{{ username }}"
-        state: present
-        key: "{{ ssh_public_key }}"
+      lineinfile:
         path: "/home/{{ username }}/.ssh/authorized_keys"
-        manage_dir: no  # We're already managing the .ssh directory above
+        line: "{{ ssh_public_key }}"
+        create: yes
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        mode: '0600'
     
     - name: Set proper permissions on home directory
       file:
