@@ -7,6 +7,7 @@
     # These will be pulled from your Semaphore variable group
     username: "{{ username }}"
     password: "{{ password }}"
+    ssh_public_key: "{{ ssh_public_key }}"
   tasks:
     - name: Install passlib on control node (run locally)
       pip:
@@ -14,6 +15,7 @@
       delegate_to: localhost
       run_once: true
       become: no
+    
     - name: Create user account
       user:
         name: "{{ username }}"
@@ -23,6 +25,7 @@
         shell: /bin/bash
         createhome: yes
         state: present
+    
     - name: Add user to sudoers file
       lineinfile:
         path: /etc/sudoers
@@ -30,6 +33,7 @@
         regexp: "^{{ username }}"
         line: "{{ username }} ALL=(ALL) NOPASSWD:ALL"
         validate: 'visudo -cf %s'
+    
     - name: Ensure .ssh directory exists for user
       file:
         path: "/home/{{ username }}/.ssh"
@@ -37,12 +41,15 @@
         owner: "{{ username }}"
         group: "{{ username }}"
         mode: '0700'
+    
     - name: Add SSH public key to authorized_keys
       authorized_key:
         user: "{{ username }}"
         state: present
-        key: "{{ lookup('file', 'ansible-key.pub') }}"
+        key: "{{ ssh_public_key }}"
         path: "/home/{{ username }}/.ssh/authorized_keys"
+        manage_dir: no  # We're already managing the .ssh directory above
+    
     - name: Set proper permissions on home directory
       file:
         path: "/home/{{ username }}"
