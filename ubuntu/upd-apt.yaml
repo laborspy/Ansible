@@ -4,8 +4,26 @@
   become: true
   become_method: sudo
   tasks:
-    - name: Wait for apt lock to be released
-      shell: while fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do sleep 1; done
+    - name: Kill any running apt processes
+      shell: |
+        killall apt apt-get dpkg >/dev/null 2>&1 || true
+        killall unattended-upgrade >/dev/null 2>&1 || true
+      ignore_errors: true
+        
+    - name: Remove apt locks if they exist
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/lib/apt/lists/lock
+        - /var/cache/apt/archives/lock
+        - /var/lib/dpkg/lock
+        - /var/lib/dpkg/lock-frontend
+      ignore_errors: true
+      
+    - name: Configure dpkg
+      shell: dpkg --configure -a
+      ignore_errors: true
       
     - name: Update packages with apt
       when: ansible_pkg_mgr == 'apt'
