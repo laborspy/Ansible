@@ -30,4 +30,5 @@
         headers:
           Content-Type: "application/json"
       delegate_to: localhost
+      become: no  # Don't use sudo for HTTP requests
       run_once: false
