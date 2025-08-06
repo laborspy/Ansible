@@ -1,12 +1,44 @@
 ---
 - name: Update all packages on Debian-based systems
   hosts: all
-  become: yes  # Run as sudo
+  become: yes
   become_user: root
+  vars:
+    remote_url: "https://your-endpoint.com/api/ansible-results"
   tasks:
     - name: Update package cache
       apt:
         update_cache: yes
+      register: cache_result
+    
     - name: Upgrade all packages to the latest version
       apt:
         upgrade: dist
+      register: upgrade_result
+    
+    - name: Send complete playbook results
+      uri:
+        url: "{{ remote_url }}"
+        method: POST
+        body_format: json
+        body:
+          playbook_name: "Update all packages on Debian-based systems"
+          host: "{{ inventory_hostname }}"
+          ansible_facts:
+            hostname: "{{ ansible_hostname }}"
+            os_family: "{{ ansible_os_family }}"
+            distribution: "{{ ansible_distribution }}"
+          execution_time: "{{ ansible_date_time.iso8601 }}"
+          tasks:
+            - task_name: "Update package cache"
+              status: "{{ 'success' if cache_result.failed is not defined else 'failed' }}"
+              changed: "{{ cache_result.changed }}"
+              details: "{{ cache_result }}"
+            - task_name: "Upgrade all packages"
+              status: "{{ 'success' if upgrade_result.failed is not defined else 'failed' }}"
+              changed: "{{ upgrade_result.changed }}"
+              details: "{{ upgrade_result }}"
+        headers:
+          Content-Type: "application/json"
+          Authorization: "Bearer YOUR_API_TOKEN"  # if needed
+      delegate_to: localhost
